@@ -1,4 +1,4 @@
-﻿"""AIHawk in the terminal: give it your resume, get the jobs that fit, select them and apply."""
+"""AIHawk in the terminal: give it your resume, get the jobs that fit, select them and apply."""
 
 from __future__ import annotations
 
@@ -335,7 +335,7 @@ class AIHawk(App[None]):
         self.query_one(RichLog).write(line)
 
     def failed(self, error: Exception) -> None:
-        """Says what went wrong, in plain words. A key OrcaRouter refused is forgotten when it came from the file, and asked for again."""
+        """Says what went wrong, in plain words. A key Zro refused is forgotten when it came from the file, and asked for again."""
         if not refused(error):
             self.say(explain(error))
             return
@@ -394,7 +394,7 @@ class AIHawk(App[None]):
         try:
             if session.needs_key():
                 key = await self.push_screen_wait(
-                    TextPrompt(f"Your OrcaRouter key. Get one at {KEY_URL} ; it stays on this computer.", placeholder="sk-orca-...", password=True, hint="Enter saves it Â· Esc stops here Â· Ctrl+C quits")
+                    TextPrompt(f"Your Zro key. Get one at {KEY_URL} ; it stays on this computer.", placeholder="sk-...", password=True, hint="Enter saves it Â· Esc stops here Â· Ctrl+C quits")
                 )
                 if not key:
                     self.say("AIHawk needs a model key to read your resume and judge jobs. Quit and start again when you have one.")
@@ -503,7 +503,7 @@ class AIHawk(App[None]):
         return [
             ("resume", "Resume", "loaded" if config.cv.is_file() else "none yet"),
             ("sign_in", "Sign in", "your mail and job sites, in the browser"),
-            ("key", "OrcaRouter key", f"from {KEY_ENV}" if config.key_from_environment() else "saved" if config.api_key() else "none yet"),
+            ("key", "Zro key", f"from {KEY_ENV}" if config.key_from_environment() else "saved" if config.api_key() else "none yet"),
             ("titles", "Look for", ", ".join(titles)),
             ("places", "Where", ", ".join(config.filters.locations)),
             ("exclude", "Leave out", ", ".join(config.filters.exclude)),
@@ -554,7 +554,7 @@ class AIHawk(App[None]):
         if config.key_from_environment():
             self.say(f"The key comes from the {KEY_ENV} variable, which wins over one typed here.")
             return
-        key = await self.push_screen_wait(TextPrompt(f"Your OrcaRouter key. Get one at {KEY_URL} ; it stays on this computer.", placeholder="sk-orca-...", password=True, hint="Enter saves it Â· Esc leaves it as it was"))
+        key = await self.push_screen_wait(TextPrompt(f"Your Zro key. Get one at {KEY_URL} ; it stays on this computer.", placeholder="sk-...", password=True, hint="Enter saves it Â· Esc leaves it as it was"))
         if key:
             self.session.save_key(key)
 

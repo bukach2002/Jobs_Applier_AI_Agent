@@ -245,7 +245,7 @@ def run_select(site: str, path: str, tmp_path: Path, model: ScriptedModel) -> An
 
 
 def test_the_browser_starts_with_the_model_key_kept_out_of_its_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("ORCAROUTER_API_KEY", "sk-test-not-real")
+    monkeypatch.setenv("ZRO_API_KEY", "sk-test-not-real")
 
     async def check() -> None:
         async with _server(tmp_path, tmp_path / "browser") as (session, _):

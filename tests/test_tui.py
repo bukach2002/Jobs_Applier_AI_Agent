@@ -76,7 +76,7 @@ def published(folder: Path) -> str:
 
 @pytest.fixture
 def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    monkeypatch.setenv("ORCAROUTER_API_KEY", "test-key")
+    monkeypatch.setenv("ZRO_API_KEY", "test-key")
     folder = tmp_path / "home"
     folder.mkdir()
     (folder / "aihawk.yaml").write_text(f"database: {published(tmp_path)}\n", encoding="utf-8")
@@ -104,18 +104,19 @@ class ScriptedModelForApp:
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
         self.requests: list[dict[str, Any]] = []
 
-    async def post(self, path: str, *, body: dict[str, Any], cast_to: type) -> dict[str, Any]:
-        """The decision endpoint: no opinion on any question, so the evidence is zero and the title alone decides."""
-        return {"answers": {name: {"type": "noul", "noul": 0.5} for name in body["questions"]}}
-
     async def _create(self, **request: Any) -> Any:
         self.requests.append(request)
-        name = (request.get("response_format") or {}).get("json_schema", {}).get("name")
+        response_format = request.get("response_format") or {}
+        json_schema = response_format.get("json_schema", {})
+        name = json_schema.get("name")
         if name == "search_profile":
             content = json.dumps(PROFILE)
         elif name == "job_report":
             text = request["messages"][1]["content"]
             content = report("yes", "yes") if "Bestco" in text else report("yes", "unclear") if "Lowly" in text else report("no", "unclear")
+        elif name == "job_fit_evidence":
+            keys = json_schema["schema"]["properties"]["answers"]["required"]
+            content = json.dumps({"answers": {key: 0.5 for key in keys}})
         else:
             content = "# Ada Rossi"
         return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content, tool_calls=None))])
@@ -182,7 +183,7 @@ def test_no_resume_asks_for_one_and_a_wrong_path_asks_again(home: Path, resume: 
 
 
 def test_no_key_asks_for_one_and_keeps_it_on_this_computer(home: Path, resume: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("ORCAROUTER_API_KEY")
+    monkeypatch.delenv("ZRO_API_KEY")
 
     async def run() -> None:
         app = AIHawk(home, resume)
@@ -190,14 +191,14 @@ def test_no_key_asks_for_one_and_keeps_it_on_this_computer(home: Path, resume: P
             await settle(pilot, app)
             assert isinstance(app.screen, TextPrompt)
             assert app.screen.query_one(Input).password is True
-            app.screen.query_one(Input).value = "sk-orca-typed"
+            app.screen.query_one(Input).value = "sk-zro-typed"
             app.session.save_key = lambda key: (type(app.session.config).save_key(app.session.config, key), setattr(app.session, "_client", ScriptedModelForApp()))  # type: ignore[method-assign]
             await pilot.press("enter")
             await settle(pilot, app)
             assert companies(app)
 
     asyncio.run(run())
-    assert (home / "key").read_text(encoding="utf-8") == "sk-orca-typed"
+    assert (home / "key").read_text(encoding="utf-8") == "sk-zro-typed"
 
 
 def fake_apply(app: AIHawk, outcomes: list[Outcome], calls: list[Any]) -> None:
@@ -459,11 +460,11 @@ def test_a_resume_and_the_files_beside_it_saved_with_a_byte_order_mark_are_read(
     assert read_resume(path).startswith("# Ada")
     (home / "answers.yaml").write_bytes(bom + b"email: ada@example.com\n")
     (home / "aihawk.yaml").write_bytes(bom + f"database: {published(tmp_path)}\n".encode())
-    monkeypatch.delenv("ORCAROUTER_API_KEY")
-    (home / "key").write_bytes(bom + b"sk-orca-typed\n")
+    monkeypatch.delenv("ZRO_API_KEY")
+    (home / "key").write_bytes(bom + b"sk-zro-typed\n")
     config = load_config(home)
     assert read_answers(config) == {"email": "ada@example.com"}
-    assert config.api_key() == "sk-orca-typed"
+    assert config.api_key() == "sk-zro-typed"
 
 
 def test_a_pdf_with_no_text_says_what_to_do(tmp_path: Path) -> None:
@@ -600,7 +601,7 @@ def test_the_sign_in_key_is_refused_while_an_application_runs(home: Path, resume
     asyncio.run(run())
 
 
-REQUEST = httpx.Request("POST", "https://api.orcarouter.ai/v1/chat/completions")
+REQUEST = httpx.Request("POST", "https://zro.moonmath.ai/v1/chat/completions")
 
 
 def status_error(kind: type, code: int) -> Exception:
@@ -608,7 +609,7 @@ def status_error(kind: type, code: int) -> Exception:
 
 
 class RefusingModel:
-    """Every call is refused for its key, as OrcaRouter refuses a wrong one."""
+    """Every call is refused for its key, as Zro refuses a wrong one."""
 
     def __init__(self) -> None:
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
@@ -622,8 +623,8 @@ def log_text(app: AIHawk) -> str:
 
 
 def test_a_key_from_the_file_that_orcarouter_refuses_is_forgotten_and_asked_for_again(home: Path, resume: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("ORCAROUTER_API_KEY")
-    (home / "key").write_text("sk-orca-wrong", encoding="utf-8")
+    monkeypatch.delenv("ZRO_API_KEY")
+    (home / "key").write_text("sk-zro-wrong", encoding="utf-8")
 
     async def run() -> None:
         app = AIHawk(home, resume)
@@ -631,8 +632,8 @@ def test_a_key_from_the_file_that_orcarouter_refuses_is_forgotten_and_asked_for_
         async with app.run_test(size=(140, 40)) as pilot:
             await settle(pilot, app)
             assert isinstance(app.screen, TextPrompt)
-            assert "forgot it" in log_text(app) and "orcarouter.ai" in log_text(app)
-            assert "sk-orca-wrong" not in log_text(app)
+            assert "forgot it" in log_text(app) and "zro.moonmath.ai" in log_text(app)
+            assert "sk-zro-wrong" not in log_text(app)
             await pilot.press("escape")
 
     asyncio.run(run())
@@ -646,7 +647,7 @@ def test_a_key_from_the_environment_that_orcarouter_refuses_is_named_and_not_ask
         async with app.run_test(size=(140, 40)) as pilot:
             await settle(pilot, app)
             assert not isinstance(app.screen, TextPrompt)
-            assert "ORCAROUTER_API_KEY variable" in log_text(app)
+            assert "ZRO_API_KEY variable" in log_text(app)
             assert "test-key" not in log_text(app)
 
     asyncio.run(run())
@@ -668,7 +669,7 @@ def test_a_failed_model_call_says_in_plain_words_what_happened_and_keeps_the_det
 
 
 def test_ctrl_c_at_the_key_prompt_leaves_and_the_prompt_says_how(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("ORCAROUTER_API_KEY")
+    monkeypatch.delenv("ZRO_API_KEY")
 
     async def run() -> None:
         app = AIHawk(home, None)
@@ -684,7 +685,7 @@ def test_ctrl_c_at_the_key_prompt_leaves_and_the_prompt_says_how(home: Path, mon
 
 
 def test_leaving_while_a_prompt_is_open_raises_nothing(home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("ORCAROUTER_API_KEY")
+    monkeypatch.delenv("ZRO_API_KEY")
 
     async def run() -> None:
         app = AIHawk(home, None)

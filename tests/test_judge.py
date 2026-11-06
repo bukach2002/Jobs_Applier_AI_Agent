@@ -29,17 +29,28 @@ def client_with(handler: Any) -> AsyncOpenAI:
     return AsyncOpenAI(base_url=DEFAULT_BASE_URL, api_key=KEY, max_retries=5, http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)))
 
 
+def completion(content: str) -> dict[str, Any]:
+    return {
+        "id": "chatcmpl-test",
+        "object": "chat.completion",
+        "created": 0,
+        "model": "deepseek-v4.1-flash",
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": content}, "finish_reason": "stop"}],
+    }
+
+
 def answering(probabilities: dict[str, float], seen: list[httpx.Request]) -> Any:
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request)
         body = json.loads(request.content)
-        return httpx.Response(200, json={"answers": {name: {"type": "noul", "noul": probabilities[name.partition("_")[2]]} for name in body["questions"]}})
+        keys = body["response_format"]["json_schema"]["schema"]["properties"]["answers"]["required"]
+        return httpx.Response(200, json=completion(json.dumps({"answers": {key: probabilities[key.split("_", 1)[1]] for key in keys}})))
 
     return handler
 
 
 def run(client: AsyncOpenAI, jobs: list[Job], cv: str = "cv", why: Callable[[str], None] = lambda reason: None) -> list[float | None]:
-    return asyncio.run(evidence(client, "typesafe/jev-1.14", cv, jobs, ASKED, lambda done: None, why))
+    return asyncio.run(evidence(client, "deepseek-v4.1-flash", cv, jobs, ASKED, lambda done: None, why))
 
 
 def postings(count: int, description: str = "") -> list[Job]:
@@ -47,19 +58,24 @@ def postings(count: int, description: str = "") -> list[Job]:
     return [Job(f"j{number:03d}", "Firm", f"Engineer {number}", "Rome", "u", "a", description) for number in range(count)]
 
 
-def test_the_request_goes_to_the_decision_endpoint_with_the_key_and_the_six_statements() -> None:
+def test_the_request_uses_zro_chat_completions_and_structured_probabilities() -> None:
     seen: list[httpx.Request] = []
     run(client_with(answering(ANSWERS, seen)), [JOB])
     (request,) = seen
-    assert str(request.url) == "https://api.orcarouter.ai/v1/systemone"
+    assert str(request.url) == "https://zro.moonmath.ai/v1/chat/completions"
     assert request.method == "POST"
     assert request.headers["authorization"] == "Bearer " + KEY
     body = json.loads(request.content)
-    assert body["model"] == "typesafe/jev-1.14"
-    assert body["state"]["candidate_cv"] == "cv"
-    assert body["state"]["job_postings"] == {"p00": "Python Engineer at Acme. Location: Rome\n\nBuild Python services."}
-    assert body["questions"] == {f"p00_{name}": {"type": "noul", "instructions": f"Posting p00 (Python Engineer at Acme): {text}"} for name, (text, _) in ASKED.items()}
-    assert len(body["questions"]) == 6
+    assert body["model"] == "deepseek-v4.1-flash"
+    messages = body["messages"]
+    assert json.loads(messages[1]["content"]) == {
+        "candidate_cv": "cv",
+        "job_postings": {"p00": "Python Engineer at Acme. Location: Rome\n\nBuild Python services."},
+        "questions": {f"p00_{name}": f"Posting p00 (Python Engineer at Acme): {text}" for name, (text, _) in ASKED.items()},
+    }
+    response_schema = body["response_format"]["json_schema"]
+    assert response_schema["strict"] is True
+    assert set(response_schema["schema"]["properties"]["answers"]["required"]) == {f"p00_{name}" for name in ASKED}
 
 
 def test_the_answers_are_gated_and_signed_as_their_questions_say() -> None:
@@ -113,11 +129,11 @@ def test_a_failure_that_a_smaller_batch_cannot_cure_is_not_split_and_the_person_
 
     assert run(client_with(refusing), postings(8), why=said.append) == [None] * 8
     assert len(seen) == 1
-    assert len(said) == 1 and said[0].startswith("OrcaRouter rejected the request.")
+    assert len(said) == 1 and said[0].startswith("Zro rejected the request.")
 
 
 def test_an_answer_of_another_shape_is_a_failed_verdict() -> None:
-    assert run(client_with(lambda request: httpx.Response(200, json={"unexpected": 1})), [JOB]) == [None]
+    assert run(client_with(lambda request: httpx.Response(200, json=completion("not json"))), [JOB]) == [None]
 
 
 def test_a_missing_answer_fails_only_that_posting() -> None:
@@ -126,7 +142,8 @@ def test_a_missing_answer_fails_only_that_posting() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request)
         body = json.loads(request.content)
-        return httpx.Response(200, json={"answers": {name: {"type": "noul", "noul": 0.9} for name in body["questions"] if name != "p01_gap"}})
+        keys = body["response_format"]["json_schema"]["schema"]["properties"]["answers"]["required"]
+        return httpx.Response(200, json=completion(json.dumps({"answers": {key: 0.9 for key in keys if key != "p01_gap"}})))
 
     values = run(client_with(handler), postings(3))
     assert len(seen) == 1
@@ -141,12 +158,26 @@ def test_a_hundred_postings_make_two_requests_of_at_most_85_and_keep_their_order
         seen.append(request)
         body = json.loads(request.content)
         # Each posting's answers differ, so a value in the wrong place shows.
-        return httpx.Response(200, json={"answers": {name: {"type": "noul", "noul": 0.8 + 0.002 * int(re.search(r"Engineer (\d+) at", question["instructions"])[1])} for name, question in body["questions"].items()}})
+        keys = body["response_format"]["json_schema"]["schema"]["properties"]["answers"]["required"]
+        jobs_in_request = json.loads(body["messages"][1]["content"])["job_postings"]
+        return httpx.Response(
+            200,
+            json=completion(
+                json.dumps(
+                    {
+                        "answers": {
+                            key: 0.8 + 0.002 * int(re.search(r"Engineer (\d+)", jobs_in_request[key.split("_", 1)[0]])[1])
+                            for key in keys
+                        }
+                    }
+                )
+            ),
+        )
 
     values = run(client_with(handler), postings(100))
-    sizes = sorted(len(json.loads(request.content)["state"]["job_postings"]) for request in seen)
+    sizes = sorted(len(json.loads(request.content)["response_format"]["json_schema"]["schema"]["properties"]["answers"]["required"]) // len(ASKED) for request in seen)
     assert sizes == [15, MAX_POSTINGS]
-    assert all(len(json.loads(request.content)["questions"]) <= 512 for request in seen)
+    assert all(len(request.content) <= MAX_CHARS for request in seen)
     assert values == pytest.approx([2 * logit(0.8 + 0.002 * number) for number in range(100)])
 
 
@@ -172,10 +203,26 @@ def test_a_failing_batch_is_split_until_the_bad_posting_is_alone() -> None:
     assert values[7] is None
     assert values[:7] + values[8:] == pytest.approx([2 * math.log(9)] * 99)
     # Every request that held posting 7 was refused, down to one that held it alone.
-    assert min(len(json.loads(request.content)["state"]["job_postings"]) for request in seen if b"Engineer 7 at" in request.content) == 1
+    assert min(
+        len(json.loads(request.content)["response_format"]["json_schema"]["schema"]["properties"]["answers"]["required"]) // len(ASKED)
+        for request in seen
+        if b"Engineer 7 at" in request.content
+    ) == 1
 
 
 def test_the_decision_model_is_pinned_and_settable_in_the_settings(tmp_path: Path) -> None:
-    assert load_config(tmp_path).decision_model == "typesafe/jev-1.14"
+    assert load_config(tmp_path).decision_model == "deepseek-v4.1-flash"
     (tmp_path / "aihawk.yaml").write_text("decision_model: other/model\n", encoding="utf-8")
     assert load_config(tmp_path).decision_model == "other/model"
+
+
+def test_old_default_model_ids_are_migrated_to_the_zro_default(tmp_path: Path) -> None:
+    (tmp_path / "aihawk.yaml").write_text(
+        "model: deepseek/deepseek-v4.1-flash\n"
+        "quick_model: google/gemini-3.5-flash\n"
+        "judge_model: deepseek/deepseek-v4.1-flash\n"
+        "decision_model: typesafe/jev-1.14\n",
+        encoding="utf-8",
+    )
+    config = load_config(tmp_path)
+    assert {config.model, config.quick_model, config.judge_model, config.decision_model} == {"deepseek-v4.1-flash"}

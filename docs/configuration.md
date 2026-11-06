@@ -4,16 +4,18 @@ Press `e` in AIHawk to change these on the screen. AIHawk reads `aihawk.yaml` in
 
 Loading a resume rewrites this file, and the rewrite drops the comments you put in it, so keep your notes elsewhere.
 
+AIHawk sends model requests to Zro's OpenAI-compatible API at `https://zro.moonmath.ai/v1`. Enter a Zro API key when prompted, or set `ZRO_API_KEY` before starting AIHawk. Existing OrcaRouter default model IDs are mapped to Zro's `deepseek-v4.1-flash`; custom model IDs are left unchanged.
+
 | Key | Default | What it does |
 |---|---|---|
 | `name` | empty | Your name for this search, shown at the top of the list. |
 | `goals` | empty | What you are looking for, in your own words. The decision model and the judge read it. |
 | `database` | `https://github.com/feder-cr/Jobs_Applier_AI_Agent/releases/download/jobs-latest/manifest.json` | Where the job database is: the URL of its `manifest.json`, or the path of a local one. The files it names sit beside it, unless its `base_url` says otherwise. |
 | `max_age_days` | `60` | Postings posted more than this many days ago are left out. A posting with no date is kept. |
-| `model` | `deepseek/deepseek-v4.1-flash` | Fills the application forms. |
-| `quick_model` | `google/gemini-3.5-flash` | Writes the search plan from your CV, and the other short calls of a search. |
-| `judge_model` | `deepseek/deepseek-v4.1-flash` | Writes the score and the report of each shortlisted posting. |
-| `decision_model` | `typesafe/jev-1.14` | Jev, which answers the six questions that shortlist the postings. |
+| `model` | `deepseek-v4.1-flash` | Fills the application forms. |
+| `quick_model` | `deepseek-v4.1-flash` | Writes the search plan from your CV, and the other short calls of a search. |
+| `judge_model` | `deepseek-v4.1-flash` | Writes the score and the report of each shortlisted posting. |
+| `decision_model` | `deepseek-v4.1-flash` | Answers the six questions that shortlist the postings. |
 | `filters.include` | empty | Title words to search for. With no `plan`, each word is one title. AIHawk asks for a resume until there is a CV and at least one of these. |
 | `filters.exclude` | empty | Whole words: a posting whose title has one of them is left out. |
 | `filters.locations` | empty | Places a posting's location must name, as whole words. |

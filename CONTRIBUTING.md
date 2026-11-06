@@ -17,7 +17,7 @@ aihawk --help
 
 The install pulls in `invisible-playwright-mcp` at its newest release from PyPI. It is not pinned, on purpose: the CI runs every day to show when a new release stops working with AIHawk.
 
-Running `aihawk` for real needs an OrcaRouter key and makes model calls. The tests need neither: they use scripted fakes (`tests/fakes.py`) and make no network calls to a model.
+Running `aihawk` for real needs a Zro API key and makes model calls. The tests need neither: they use scripted fakes (`tests/fakes.py`) and make no network calls to a model.
 
 AIHawk keeps its files in `~/.aihawk` (on Windows, `%USERPROFILE%\.aihawk`).
 

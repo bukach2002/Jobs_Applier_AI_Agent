@@ -53,12 +53,12 @@ class Session:
         self._client = None
 
     def refuse_key(self) -> str:
-        """OrcaRouter refused the key. One typed in is forgotten, so the next question asks for another; one from the environment is named."""
+        """Zro refused the key. One typed in is forgotten, so the next question asks for another; one from the environment is named."""
         self._client = None
         if self.config.key_from_environment():
-            return f"OrcaRouter refused the key in the {KEY_ENV} variable. Set it to a key from {KEY_URL}, then start AIHawk again."
+            return f"Zro refused the key in the {KEY_ENV} variable. Set it to a key from {KEY_URL}, then start AIHawk again."
         self.config.key_file.unlink(missing_ok=True)
-        return f"OrcaRouter refused the key, so AIHawk forgot it. Get one at {KEY_URL} and type it in again."
+        return f"Zro refused the key, so AIHawk forgot it. Get one at {KEY_URL} and type it in again."
 
     def needs_resume(self) -> bool:
         return not self.config.cv.is_file() or not self.config.filters.include

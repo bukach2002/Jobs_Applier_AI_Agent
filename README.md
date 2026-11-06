@@ -57,7 +57,7 @@ Linux:
 curl -LsSf https://raw.githubusercontent.com/feder-cr/Jobs_Applier_AI_Agent/main/run.sh | sh
 ```
 
-You need a key: [get one from OrcaRouter](https://www.orcarouter.ai/ref/ref_accd17afb78fc95ac4d7).
+You need a [Zro API key](https://zro.moonmath.ai/api-keys). AIHawk uses Zro's OpenAI-compatible API and its recommended `deepseek-v4.1-flash` model.
 
 
 ---

@@ -98,18 +98,34 @@ def test_a_failed_verdict_is_counted_once_and_the_others_are_as_they_were(tmp_pa
         if b"Engineer 7 at" in request.content:
             return httpx.Response(400, json={"error": {"message": "maximum context length exceeded", "code": "context_length_exceeded"}})
         body = json.loads(request.content)
-        return httpx.Response(200, json={"answers": {name: {"type": "noul", "noul": 0.9} for name in body["questions"]}})
+        keys = body["response_format"]["json_schema"]["schema"]["properties"]["answers"]["required"]
+        return httpx.Response(
+            200,
+            json={
+                "id": "chatcmpl-test",
+                "object": "chat.completion",
+                "created": 0,
+                "model": "deepseek-v4.1-flash",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": json.dumps({"answers": {key: 0.9 for key in keys}})},
+                        "finish_reason": "stop",
+                    }
+                ],
+            },
+        )
 
     # The real evidence, over a scripted endpoint: a posting too large to judge alone is one failed verdict, not a crash.
     monkeypatch.setattr(session_module, "evidence", judge_module.evidence)
     session = session_with(tmp_path, WIDE)
-    session._client = AsyncOpenAI(base_url="https://api.orcarouter.ai/v1", api_key="sk-test", max_retries=0, http_client=httpx.AsyncClient(transport=httpx.MockTransport(scripted_endpoint)))
+    session._client = AsyncOpenAI(base_url="https://zro.moonmath.ai/v1", api_key="sk-test", max_retries=0, http_client=httpx.AsyncClient(transport=httpx.MockTransport(scripted_endpoint)))
     said: list[str] = []
     asyncio.run(session.funnel(said.append, lambda line: None))
     evidence = {item.job.id: item.evidence for item in session.store.all()}
     assert evidence["p007"] is None
     assert evidence["p008"] == pytest.approx(2 * math.log(9))
-    assert len(said) == 1 and said[0].startswith("Jev could not read 1 of 100 postings: OrcaRouter rejected the request.")
+    assert len(said) == 1 and said[0].startswith("Jev could not read 1 of 100 postings: Zro rejected the request.")
     assert said[0].endswith("; they are ranked by their title alone")
     assert len(session.store.with_status("shortlisted")) == JUDGED
     assert len(session.store.with_status("shortlisted")) == JUDGED
@@ -118,7 +134,7 @@ def test_a_failed_verdict_is_counted_once_and_the_others_are_as_they_were(tmp_pa
 def test_a_judge_that_reads_nothing_passes_no_posting_over_for_good(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     async def unread(client: Any, model: str, cv: str, jobs: list[Job], asked: dict[str, Any], progress: Any, why: Any) -> list[None]:
         progress(len(jobs))
-        why("OrcaRouter answered 500")
+        why("Zro answered 500")
         return [None] * len(jobs)
 
     monkeypatch.setattr(session_module, "evidence", unread)

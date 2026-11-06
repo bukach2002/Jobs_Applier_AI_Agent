@@ -45,10 +45,10 @@ def ready(selector: str = "#send") -> list[Any]:
 
 
 def test_the_browser_is_given_the_environment_without_the_model_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("ORCAROUTER_API_KEY", "secret")
+    monkeypatch.setenv("ZRO_API_KEY", "secret")
     monkeypatch.setenv("PATH_ALIKE", "kept")
     environment = server_parameters(tmp_path, tmp_path).env
-    assert "ORCAROUTER_API_KEY" not in environment and environment["PATH_ALIKE"] == "kept"
+    assert "ZRO_API_KEY" not in environment and environment["PATH_ALIKE"] == "kept"
 
 
 @pytest.fixture(autouse=True)

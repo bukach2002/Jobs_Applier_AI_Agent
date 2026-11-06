@@ -1,4 +1,4 @@
-"""The one model gateway: OrcaRouter, or another endpoint that the settings name. It must serve OpenAI's chat API, and the decision model's /systemone call."""
+"""The one model gateway: MoonMath Zro's OpenAI-compatible chat API."""
 
 from __future__ import annotations
 
@@ -22,22 +22,22 @@ TIMEOUT = 180.0
 
 
 def refused(error: BaseException) -> bool:
-    """Whether OrcaRouter refused the key: the one failure that the person must fix before anything can work."""
+    """Whether Zro refused the key: the one failure that the person must fix before anything can work."""
     return isinstance(error, AuthenticationError)
 
 
 def explain(error: Exception) -> str:
     """What a failed model call says in plain words. The detail stays after it, and the key is never in it."""
     if isinstance(error, APITimeoutError):
-        return f"OrcaRouter did not answer in time. Try again in a moment. ({error})"
+        return f"Zro did not answer in time. Try again in a moment. ({error})"
     if isinstance(error, APIConnectionError):
-        return f"OrcaRouter cannot be reached: check your internet connection and try again. ({error})"
+        return f"Zro cannot be reached: check your internet connection and try again. ({error})"
     if isinstance(error, RateLimitError):
-        return f"OrcaRouter is asking AIHawk to slow down: wait a few minutes and try again. ({error})"
+        return f"Zro is asking AIHawk to slow down: wait a few minutes and try again. ({error})"
     if isinstance(error, InternalServerError):
-        return f"OrcaRouter failed on its side: try again in a few minutes. ({error})"
+        return f"Zro failed on its side: try again in a few minutes. ({error})"
     if isinstance(error, BadRequestError):
-        return f"OrcaRouter rejected the request. ({error})"
+        return f"Zro rejected the request. ({error})"
     return f"Something failed: {error}"
 
 
@@ -45,7 +45,7 @@ def make_client(config: Config) -> AsyncOpenAI:
     key = config.api_key()
     if not key:
         raise ConfigError(f"no model key: set {KEY_ENV} (create one at {KEY_URL})")
-    # The SDK retries 429s and 5xx itself and honours Retry-After, which is all OrcaRouter sends about its limits.
+    # The SDK retries 429s and 5xx itself and honours Retry-After.
     return AsyncOpenAI(base_url=DEFAULT_BASE_URL, api_key=key, max_retries=5, timeout=TIMEOUT)
 
 

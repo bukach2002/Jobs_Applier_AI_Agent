@@ -22,7 +22,7 @@ AIHawk reads job pages written by strangers, fills their forms, and sends applic
 
 ## Where keys and sign-ins are kept
 
-- The OrcaRouter key comes from the `ORCAROUTER_API_KEY` environment variable, or from a file named `key` in the AIHawk folder.
+- The Zro API key comes from the `ZRO_API_KEY` environment variable, or from a file named `key` in the AIHawk folder.
 - The AIHawk folder is `~/.aihawk`. It also holds the CV, the answers, the job data, what was sent (`applied.csv` and `data/proofs/`) and the browser profile (`browser-profile/`), which keeps the person's sign-ins.
 - Do not paste a key, a browser profile or a folder from the AIHawk folder into an issue or a pull request.
 
@@ -38,6 +38,6 @@ AIHawk reads job pages written by strangers, fills their forms, and sends applic
 
 - **It goes out in your name, unread.** Where your resume says nothing, the model writes "Please see my attached CV", picks the closest option or a plausible number, and ticks the boxes the form requires, the right to work included. You answer for all of it, and some sites do not allow this.
 - **Nothing checks the model in the browser.** It could send early or half filled: [SECURITY.md](SECURITY.md).
-- **Your data.** Your CV and the pages go to OrcaRouter and its providers. The rest stays in `~/.aihawk`.
+- **Your data.** Your CV and the pages go to [Zro](https://zro.moonmath.ai/docs/privacy). The rest stays in `~/.aihawk`.
 - **Downloads.** About 740 MB of job index and 268 MB of browser. Windows and Linux.
 - **The job data is not ours.** Some sources state no licence, and one asks not to be republished: [every source](docs/data-sources.md).

@@ -11,21 +11,15 @@ import yaml
 
 CONFIG_FILE = "aihawk.yaml"
 KEY_FILE = "key"
-DEFAULT_BASE_URL = "https://api.orcarouter.ai/v1"
+DEFAULT_BASE_URL = "https://zro.moonmath.ai/v1"
 # The variable that holds the model key, unless the settings name another. The browser is given no variable that holds a key.
-KEY_ENV = "ORCAROUTER_API_KEY"
-# Where a person gets a key. A referral link, as the README says: AIHawk gets a share of what is spent through it.
-KEY_URL = "https://www.orcarouter.ai/ref/ref_accd17afb78fc95ac4d7"
-# Fills the forms and reads their screenshots. Chosen over z-ai/glm-5.3-flash, which was slower and dearer on the same forms.
-DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash"
-# For the plan and the other short calls of a search. deepseek-v4.1-flash did not keep the plan's nested schema, and
-# z-ai/glm-5.3-flash was too slow for a search.
-DEFAULT_QUICK_MODEL = "google/gemini-3.5-flash"
+KEY_ENV = "ZRO_API_KEY"
+KEY_URL = "https://zro.moonmath.ai/api-keys"
+DEFAULT_MODEL = "deepseek-v4.1-flash"
+DEFAULT_QUICK_MODEL = "deepseek-v4.1-flash"
 # Writes the score and the report of each posting the funnel shortlists.
-DEFAULT_JUDGE_MODEL = "deepseek/deepseek-v4.1-flash"
-# Answers the six questions that shortlist the postings. Kept as the default: judge.py turns its answers into evidence by rules
-# that were checked on this model, and another model answers differently, so those rules need checking again.
-DEFAULT_DECISION_MODEL = "typesafe/jev-1.14"
+DEFAULT_JUDGE_MODEL = "deepseek-v4.1-flash"
+DEFAULT_DECISION_MODEL = "deepseek-v4.1-flash"
 DEFAULT_DATABASE = "https://github.com/feder-cr/Jobs_Applier_AI_Agent/releases/download/jobs-latest/manifest.json"
 DEFAULT_MAX_AGE_DAYS = 60
 
@@ -170,6 +164,13 @@ def _weight(value: object, name: str) -> float:
     return float(value)
 
 
+def _model(value: object, default: str) -> str:
+    model = str(value or default)
+    if model in {"deepseek/deepseek-v4.1-flash", "google/gemini-3.5-flash", "typesafe/jev-1.14"}:
+        return DEFAULT_MODEL
+    return model
+
+
 def _node(entry: object) -> Node:
     if not isinstance(entry, dict):
         raise ConfigError(f"a node needs id, weight and forms: {entry!r}")
@@ -240,10 +241,10 @@ def load_config(workspace: Path) -> Config:
         goals=str(raw.get("goals") or ""),
         database=str(raw.get("database") or DEFAULT_DATABASE),
         max_age_days=_days(raw.get("max_age_days", DEFAULT_MAX_AGE_DAYS), "max_age_days"),
-        model=str(raw.get("model") or DEFAULT_MODEL),
-        quick_model=str(raw.get("quick_model") or DEFAULT_QUICK_MODEL),
-        judge_model=str(raw.get("judge_model") or DEFAULT_JUDGE_MODEL),
-        decision_model=str(raw.get("decision_model") or DEFAULT_DECISION_MODEL),
+        model=_model(raw.get("model"), DEFAULT_MODEL),
+        quick_model=_model(raw.get("quick_model"), DEFAULT_QUICK_MODEL),
+        judge_model=_model(raw.get("judge_model"), DEFAULT_JUDGE_MODEL),
+        decision_model=_model(raw.get("decision_model"), DEFAULT_DECISION_MODEL),
         filters=Filters(
             _words(filters.get("include"), "filters.include"),
             _words(filters.get("exclude"), "filters.exclude"),
